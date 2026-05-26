@@ -1,4 +1,5 @@
 import type {
+  AuditEvent,
   HealthcareDocumentType,
   SignedCredential,
   SignedPresentation,
@@ -10,6 +11,7 @@ import { generateLocalKeyPair } from "./signing";
 import { issueSignedCredential } from "./credential";
 import { createProofRequest, createSignedPresentation } from "./presentation";
 import { verifyHealthcarePresentation } from "./verifier";
+import { createDemoAuditLog } from "./audit";
 
 export interface DemoFlowResult {
   issuerKeys: {
@@ -23,6 +25,7 @@ export interface DemoFlowResult {
   signedCredential: SignedCredential;
   signedPresentation: SignedPresentation;
   verificationResult: VerificationResult;
+  auditLog: AuditEvent[];
 }
 
 export async function runDemoFlow(params?: {
@@ -45,10 +48,8 @@ export async function runDemoFlow(params?: {
   const issuerKeys = await generateLocalKeyPair();
   const holderKeys = await generateLocalKeyPair();
 
-  const { signedCredential } = await issueSignedCredential(
-    hprRecord,
-    issuerKeys.privateJwk,
-  );
+  const { issuanceRequest, credentialOffer, signedCredential } =
+    await issueSignedCredential(hprRecord, issuerKeys.privateJwk);
 
   const proofRequest = createProofRequest(verifier, requestedDocumentType);
 
@@ -66,11 +67,20 @@ export async function runDemoFlow(params?: {
     proofRequest,
   });
 
+  const auditLog = await createDemoAuditLog({
+    issuanceRequest,
+    credentialOffer,
+    signedCredential,
+    signedPresentation,
+    verificationResult,
+  });
+
   return {
     issuerKeys,
     holderKeys,
     signedCredential,
     signedPresentation,
     verificationResult,
+    auditLog,
   };
 }
